@@ -120,7 +120,7 @@ When running manually via **Actions → Run workflow**, you can specify:
 
 ## Security Notes
 
-- **Never commit `config.toml` if it contains your API token.** The `.gitignore` ignores `config.toml` by default, but if you override it, be careful.
+- **Never commit `config.toml` if it contains your API token.**
 - **Use GitHub Secrets** for the token in CI/CD.
 - The script strips a leading `Bearer ` prefix from the token automatically if present.
 
