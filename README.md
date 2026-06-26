@@ -2,7 +2,7 @@
 
 Automatically sync [Hagezi DNS blocklists](https://github.com/hagezi/dns-blocklists) to your [ControlD](https://controld.com/) profiles via the ControlD API.
 
-[![Sync Hagezi to ControlD](controld-hagezi-sync/actions/workflows/sync.yml/badge.svg)](controld-hagezi-sync/actions/workflows/sync.yml)
+[![Sync Hagezi to ControlD](../../actions/workflows/sync.yml/badge.svg)](../../actions/workflows/sync.yml)
 
 ## What it does
 
