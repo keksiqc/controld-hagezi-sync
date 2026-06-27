@@ -256,10 +256,6 @@ Keep your config simple and these limitations will not affect you.
 
 ## Roadmap
 
-- [x] `--last-updated` — check upstream freshness without syncing (v1.3.0)
-- [x] `--no-freshness` / `show_freshness` setting — skip GitHub API calls in CI (v1.3.4)
-- [x] Quote-aware TOML comment stripping — `#` inside strings no longer breaks parsing (v1.3.4)
-- [x] Proper `Retry-After` header parsing on ControlD API rate limits (v1.3.4)
 - [ ] `--check-update` — skip sync if Hagezi lists haven't changed (high priority)
 - [ ] Optional atomic two-phase sync (blocked by ControlD API improvements)
 
@@ -273,7 +269,7 @@ Keep your config simple and these limitations will not affect you.
 | `Profile not found by name` | Ensure the profile name in `config.toml` matches exactly (case-sensitive) in ControlD. |
 | `Failed to fetch profiles (HTTP 401)` | Your API token is invalid or expired. Generate a new one from the ControlD dashboard. |
 | `Batch X failed (HTTP 4xx/5xx)` | The script retries automatically with exponential backoff. If persistent, check ControlD API status. |
-| `--list-hagezi shows rate limit` | GitHub unauthenticated API limit is 60/hr. Set `GITHUB_TOKEN` or wait. |
+| `--list-hagezi shows rate limit` | GitHub unauthenticated API limit is 60/hr or 5000/hr w/ GITHUB_TOKEN env var. |
 
 ---
 

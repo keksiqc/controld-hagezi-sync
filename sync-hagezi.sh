@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # ControlD Hagezi Folder Auto-Sync
-# Version: 1.4.0
+# Version: 1.4.1
 # Description: Syncs Hagezi DNS blocklist folders to ControlD profiles.
 #              Pure Bash. No Python. TOML-driven configuration.
 # Requirements: bash 4.3+, curl, jq
@@ -11,7 +11,7 @@
 set -o pipefail
 shopt -s extglob
 
-VERSION="1.4.0"
+VERSION="1.4.1"
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION
@@ -142,6 +142,7 @@ parse_toml() {
         fi
 
         # Try quoted key first, then unquoted key
+        # Note: [[ =~ ]] stores regex in BASH_REMATCH; we avoid escaped quotes in the pattern
         if [[ "$line" =~ ^[[:space:]]*\"([^\"]+)\"[[:space:]]*=[[:space:]]*(.+)[[:space:]]*$ ]]; then
             key="${BASH_REMATCH[1]}"
             raw_val="${BASH_REMATCH[2]}"
@@ -152,7 +153,6 @@ parse_toml() {
             continue
         fi
 
-        # Clean trailing whitespace
         raw_val="${raw_val%%+([[:space:]])}"
 
         if [[ "$raw_val" == \[* ]]; then
@@ -168,7 +168,6 @@ parse_toml() {
             continue
         fi
 
-        # Strip surrounding quotes from string values
         if [[ "$raw_val" == \"*\" ]]; then
             val="${raw_val#\"}"
             val="${val%\"}"
@@ -216,6 +215,7 @@ load_config() {
     parse_toml "$cfg"
 
     API_TOKEN="${API_TOKEN:-$(toml_get "settings" "api_token")}"
+    API_TOKEN="${API_TOKEN#Bearer }"
     [[ "$(toml_get "settings" "dry_run")" == "true" ]] && DRY_RUN=true
     [[ "$(toml_get "settings" "show_freshness")" == "false" ]] && SHOW_FRESHNESS=false
 
@@ -371,13 +371,15 @@ list_hagezi() {
 show_last_updated() {
     log "Fetching last updated dates from GitHub API..."
     local fname url filepath api_url resp code body date_str target_epoch seconds_diff
+    local gh_headers=(-H "Accept: application/vnd.github.v3+json" -H "User-Agent: controld-hagezi-sync/${VERSION}")
+    [[ -n "${GITHUB_TOKEN:-}" ]] && gh_headers+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
 
     for fname in "${!HAGEZI_FOLDERS[@]}"; do
         url="${HAGEZI_FOLDERS[$fname]}"
         filepath="${url#*main/}"
 
         api_url="https://api.github.com/repos/hagezi/dns-blocklists/commits?path=${filepath}&per_page=1"
-        resp=$(curl -s -w "\n%{http_code}" -H "Accept: application/vnd.github.v3+json" -H "User-Agent: controld-hagezi-sync/${VERSION}" "$api_url")
+        resp=$(curl -s -w "\n%{http_code}" "${gh_headers[@]}" "$api_url")
         code=$(tail -n1 <<< "$resp")
         body=$(sed '$d' <<< "$resp")
 
@@ -455,6 +457,8 @@ Options:
 
 Environment:
   CONTROLD_API_TOKEN   Required if not set in config.toml. Your API Write Token.
+  GITHUB_TOKEN         Optional. Authenticates GitHub API calls for freshness
+                       reports (raises rate limit from 60 to 5000 req/hr).
   CONFIG_FILE          Default configuration file path.
 
 Examples:
@@ -525,8 +529,6 @@ main() {
     [[ -n "$TARGET_PROFILE" && ! " ${PROFILE_NAMES[*]} " =~ " $TARGET_PROFILE " ]] && { log "ERROR: Profile '$TARGET_PROFILE' not found"; exit 1; }
     [[ -z "$API_TOKEN" ]] && { log "ERROR: API token required."; exit 1; }
 
-    API_TOKEN="${API_TOKEN#Bearer }"
-
     log "========================================"
     log "ControlD Sync v${VERSION}"
     [[ "$DRY_RUN" == true ]] && log "MODE: DRY-RUN"
@@ -536,7 +538,7 @@ main() {
     ALL_PROFILES=$(get_all_profiles) || exit 1
 
     TMPDIR=$(mktemp -d)
-    trap "rm -rf '$TMPDIR'" EXIT
+    trap '[[ -n "${TMPDIR:-}" ]] && rm -rf "$TMPDIR"' EXIT
     mkdir -p "$TMPDIR/cache"
 
     log "Pre-downloading Hagezi folder data..."

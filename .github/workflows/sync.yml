@@ -49,7 +49,7 @@ jobs:
           [[ -n "${{ github.event.inputs.profile }}" ]] && ARGS+=("--profile" "${{ github.event.inputs.profile }}")
           [[ "${{ github.event.inputs.dry_run }}" == "true" ]] && ARGS+=("--dry-run")
           # Skip freshness report on scheduled runs to avoid GitHub API rate limits
-          [[ "${{ github.event_name }}" == "schedule" ]] && ARGS+=("--no-freshness")
+          # [[ "${{ github.event_name }}" == "schedule" ]] && ARGS+=("--no-freshness")
           ./sync-hagezi.sh "${ARGS[@]}"
 
       - name: Delete logs on success
