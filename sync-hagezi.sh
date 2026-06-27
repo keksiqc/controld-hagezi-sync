@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # ControlD Hagezi Folder Auto-Sync
-# Version: 1.4.1
+# Version: 1.4.2
 # Description: Syncs Hagezi DNS blocklist folders to ControlD profiles.
 #              Pure Bash. No Python. TOML-driven configuration.
 # Requirements: bash 4.3+, curl, jq
@@ -9,9 +9,9 @@
 # =============================================================================
 
 set -o pipefail
-shopt -s extglob
+shopt -s extglob  # Enable extended glob patterns for whitespace trimming (e.g., ${var%%+([[:space:]])})
 
-VERSION="1.4.1"
+VERSION="1.4.2"
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION
@@ -98,6 +98,7 @@ api_call_with_retry() {
 # NOTE: Pragmatic parser. Handles sections, quoted/unquoted keys, strings,
 #       booleans, and multi-line arrays. Does NOT support escaped quotes,
 #       multi-line literals, inline tables, or date/time types.
+#       Requires shopt -s extglob for whitespace trimming.
 # ---------------------------------------------------------------------------
 
 parse_toml() {
@@ -142,8 +143,8 @@ parse_toml() {
         fi
 
         # Try quoted key first, then unquoted key
-        # Note: [[ =~ ]] stores regex in BASH_REMATCH; we avoid escaped quotes in the pattern
-        if [[ "$line" =~ ^[[:space:]]*\"([^\"]+)\"[[:space:]]*=[[:space:]]*(.+)[[:space:]]*$ ]]; then
+        local quoted_key_re='^[[:space:]]*"([^"]+)"[[:space:]]*=[[:space:]]*(.+)[[:space:]]*$'
+        if [[ "$line" =~ $quoted_key_re ]]; then
             key="${BASH_REMATCH[1]}"
             raw_val="${BASH_REMATCH[2]}"
         elif [[ "$line" =~ ^[[:space:]]*([A-Za-z0-9_]+)[[:space:]]*=[[:space:]]*(.+)[[:space:]]*$ ]]; then
@@ -168,7 +169,7 @@ parse_toml() {
             continue
         fi
 
-        if [[ "$raw_val" == \"*\" ]]; then
+        if [[ "$raw_val" == '"'?*'"' ]]; then
             val="${raw_val#\"}"
             val="${val%\"}"
         else
@@ -223,6 +224,7 @@ load_config() {
     [[ ${#PROFILE_NAMES[@]} -eq 0 || -z "${PROFILE_NAMES[0]}" ]] && { log "ERROR: No profiles configured in $cfg"; exit 1; }
 
     HAGEZI_FOLDERS=(); PROFILE_FOLDERS=()
+    local key
     for key in "${!_TOML_VALS[@]}"; do
         [[ "$key" == folders\|* ]] && HAGEZI_FOLDERS["${key#folders\|}"]="${_TOML_VALS[$key]}"
         [[ "$key" == profile_folders\|* ]] && PROFILE_FOLDERS["${key#profile_folders\|}"]="${_TOML_VALS[$key]}"
@@ -459,6 +461,7 @@ Environment:
   CONTROLD_API_TOKEN   Required if not set in config.toml. Your API Write Token.
   GITHUB_TOKEN         Optional. Authenticates GitHub API calls for freshness
                        reports (raises rate limit from 60 to 5000 req/hr).
+                       Automatically available in GitHub Actions.
   CONFIG_FILE          Default configuration file path.
 
 Examples:
@@ -483,6 +486,14 @@ parse_args() {
             *) log "WARN: Unknown argument: $1"; shift ;;
         esac
     done
+}
+
+profile_exists() {
+    local target="$1" p
+    for p in "${PROFILE_NAMES[@]}"; do
+        [[ "$p" == "$target" ]] && return 0
+    done
+    return 1
 }
 
 sync_folder() {
@@ -526,7 +537,13 @@ main() {
         exit 0
     fi
 
-    [[ -n "$TARGET_PROFILE" && ! " ${PROFILE_NAMES[*]} " =~ " $TARGET_PROFILE " ]] && { log "ERROR: Profile '$TARGET_PROFILE' not found"; exit 1; }
+    if [[ -n "$TARGET_PROFILE" ]]; then
+        if ! profile_exists "$TARGET_PROFILE"; then
+            log "ERROR: Profile '$TARGET_PROFILE' not found"
+            exit 1
+        fi
+    fi
+
     [[ -z "$API_TOKEN" ]] && { log "ERROR: API token required."; exit 1; }
 
     log "========================================"
@@ -542,14 +559,15 @@ main() {
     mkdir -p "$TMPDIR/cache"
 
     log "Pre-downloading Hagezi folder data..."
+    local fname cachefile
     for fname in "${!HAGEZI_FOLDERS[@]}"; do
-        local cachefile="$TMPDIR/cache/${fname// /_}.json"
+        cachefile="$TMPDIR/cache/${fname// /_}.json"
         download_folder "${HAGEZI_FOLDERS[$fname]}" "$cachefile" && log "  Cached: $fname" || log "  FAILED: $fname"
     done
 
+    local pname pid
     for pname in "${PROFILE_NAMES[@]}"; do
         [[ -n "$TARGET_PROFILE" && "$pname" != "$TARGET_PROFILE" ]] && continue
-        local pid
         pid=$(find_profile_id "$ALL_PROFILES" "$pname")
 
         [[ -z "$pid" || "$pid" == "null" ]] && { log ""; log "--- Profile: $pname ---"; log "  ERROR: Profile not found"; continue; }
@@ -563,6 +581,7 @@ main() {
         local folder_list="${PROFILE_FOLDERS[$pname]}"
         [[ -z "$folder_list" ]] && { log "  WARN: No folders mapped"; continue; }
 
+        local f
         IFS='|' read -ra TO_SYNC <<< "$folder_list"
         for f in "${TO_SYNC[@]}"; do
             sync_folder "$pname" "$pid" "$f" "$TMPDIR/cache/${f// /_}.json" "$PROFILE_GROUPS"
