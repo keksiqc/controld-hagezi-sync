@@ -20,12 +20,13 @@ jobs:
 
       - name: Check for upstream changes
         id: check
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./sync-hagezi.sh --check-updates --no-freshness
 
       - name: Trigger sync workflow
-        if: success()
+        if: steps.check.outcome == 'success'
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: sync.yml
