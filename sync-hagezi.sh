@@ -679,7 +679,7 @@ main() {
     # Security: Mask the ControlD API token in GitHub Actions logs
     if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
         echo "::add-mask::$API_TOKEN"
-        
+
         # QoL: Setup GitHub Actions Workflow Summary markdown table
         if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
             SUMMARY_FILE="$GITHUB_STEP_SUMMARY"
@@ -742,7 +742,62 @@ main() {
     log "Sync Complete: $SUCCESS_COUNT succeeded, $FAILED_COUNT failed"
     log "========================================"
 
-    if [[ "$SHOW_FRESHNESS" == true ]]; then
+    # Add upstream freshness to GitHub Actions summary
+    if [[ -n "${GITHUB_STEP_SUMMARY:-}" && "$SHOW_FRESHNESS" == true ]]; then
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "---" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Upstream Freshness (Hagezi GitHub) 🕐" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Folder | Last Updated |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+        local _fname _url _filepath _api_url _resp _code _body _date_str _target_epoch _seconds_diff _rel_time _fmt_date
+        local _gh_headers=(-H "Accept: application/vnd.github.v3+json" -H "User-Agent: controld-hagezi-sync/${VERSION}")
+        [[ -n "${GITHUB_TOKEN:-}" ]] && _gh_headers+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+
+        for _fname in "${!HAGEZI_FOLDERS[@]}"; do
+            _url="${HAGEZI_FOLDERS[$_fname]}"
+            _filepath="${_url#*main/}"
+            _api_url="https://api.github.com/repos/hagezi/dns-blocklists/commits?path=${_filepath}&per_page=1"
+            _resp=$(curl -s -w "\n%{http_code}" "${_gh_headers[@]}" "$_api_url")
+            _code=$(tail -n1 <<< "$_resp")
+            _body=$(sed '$d' <<< "$_resp")
+
+            if [[ "$_code" == "200" ]]; then
+                _date_str=$(jq -r '.[0].commit.committer.date // empty' <<< "$_body")
+                if [[ -n "$_date_str" ]]; then
+                    _target_epoch=$(date -d "$_date_str" +%s 2>/dev/null) || _target_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$_date_str" +%s 2>/dev/null)
+                    if [[ -n "$_target_epoch" ]]; then
+                        _seconds_diff=$(( $(date +%s) - _target_epoch ))
+
+                        if (( _seconds_diff < 60 )); then
+                            _rel_time="${_seconds_diff}s ago"
+                        elif (( _seconds_diff < 3600 )); then
+                            _rel_time="$(( _seconds_diff / 60 ))m ago"
+                        elif (( _seconds_diff < 86400 )); then
+                            _rel_time="$(( _seconds_diff / 3600 ))h ago"
+                        else
+                            _rel_time="$(( _seconds_diff / 86400 ))d ago"
+                        fi
+
+                        _fmt_date="${_date_str/T/ }"
+                        _fmt_date="${_fmt_date/Z/ UTC}"
+                        echo "| $_fname | $_rel_time ($_fmt_date) |" >> "$GITHUB_STEP_SUMMARY"
+                    else
+                        echo "| $_fname | Unknown (parse failed) |" >> "$GITHUB_STEP_SUMMARY"
+                    fi
+                else
+                    echo "| $_fname | Unknown (no date) |" >> "$GITHUB_STEP_SUMMARY"
+                fi
+            else
+                echo "| $_fname | Failed (HTTP $_code) |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+        done
+    fi
+
+    # Only print to stdout if not in Actions (summary already has it)
+    if [[ "$SHOW_FRESHNESS" == true && -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
         log ""
         log "--- Upstream Freshness (GitHub) ---"
         show_last_updated
