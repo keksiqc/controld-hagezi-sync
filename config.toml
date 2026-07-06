@@ -20,7 +20,7 @@ dry_run = false
 
 [profiles]
 # Exact names of your ControlD profiles (case-sensitive).
-names = ["Tesla", "Kids", "Friends", "Adults"]
+names = ["Aggressive", "Hardened"]
 
 # =============================================================================
 # FOLDER DEFINITIONS
@@ -30,10 +30,14 @@ names = ["Tesla", "Kids", "Friends", "Adults"]
 # =============================================================================
 
 [folders]
-"Badware Hoster"         = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/badware-hoster-folder.json"
-"Most Abused TLDs"       = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/spam-tlds-combined-folder.json"
-"No Safesearch Support"  = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/nosafesearch-folder.json"
-"META Tracker Allow"     = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/meta-tracker-allow-folder.json"
+"Badware Hoster" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/badware-hoster-folder.json"
+"Most Abused TLDs" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/spam-tlds-combined-folder.json"
+"No Safesearch Support" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/nosafesearch-folder.json"
+"Referral Allow" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/referral-allow-folder.json"
+"Ultimate Known Issues" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/controld/ultimate-known_issues-allow-folder.json"
+"Native Amazon" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/native-tracker-amazon-folder.json"
+"Native Microsoft" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/native-tracker-microsoft-folder.json"
+"Native TikTok" = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/controld/native-tracker-tiktok-aggressive-folder.json"
 
 # =============================================================================
 # PROFILE → FOLDER MAPPINGS
@@ -43,7 +47,23 @@ names = ["Tesla", "Kids", "Friends", "Adults"]
 # =============================================================================
 
 [profile_folders]
-Tesla   = ["Badware Hoster", "Most Abused TLDs"]
-Kids    = ["Badware Hoster", "Most Abused TLDs", "No Safesearch Support"]
-Friends = ["Badware Hoster", "Most Abused TLDs", "META Tracker Allow"]
-Adults  = ["Badware Hoster", "Most Abused TLDs", "META Tracker Allow"]
+Aggressive = [
+  "Badware Hoster",
+  "Most Abused TLDs",
+  "No Safesearch Support",
+  "Referral Allow",
+  "Ultimate Known Issues",
+  "Native Amazon",
+  "Native Microsoft",
+  "Native TikTok"
+]
+Hardened = [
+  "Badware Hoster",
+  "Most Abused TLDs",
+  "No Safesearch Support",
+  "Referral Allow",
+  "Ultimate Known Issues",
+  "Native Amazon",
+  "Native Microsoft",
+  "Native TikTok"
+]
