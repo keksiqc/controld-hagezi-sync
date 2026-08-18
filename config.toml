@@ -52,4 +52,13 @@ names = ["Aggressive"]
 # =============================================================================
 
 [profile_folders]
-Aggressive = ["Badware Hoster", "Most Abused TLDs", "No Safesearch Support", "Referral Allow", "Ultimate Known Issues", "Native Amazon", "Native Microsoft", "Native TikTok"]
+Aggressive = [
+  "Badware Hoster",
+  "Most Abused TLDs",
+  "No Safesearch Support",
+  "Referral Allow",
+  "Ultimate Known Issues",
+  "Native Amazon",
+  "Native Microsoft",
+  "Native TikTok",
+]
