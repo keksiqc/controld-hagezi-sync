@@ -54,7 +54,7 @@ names = ["Aggressive"]
 [profile_folders]
 Aggressive = [
   "Badware Hoster",
-  "Most Abused TLDs",
+# "Most Abused TLDs",
   "No Safesearch Support",
   "Referral Allow",
   "Ultimate Known Issues",
